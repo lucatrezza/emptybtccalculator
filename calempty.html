@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitcoin Position</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500&display=swap');
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  --ink: #0A0A0D;
+  --ink-2: #161618;
+  --ink-3: #1F1F22;
+  --paper: #F4EFE1;
+  --gold: #F7931A;
+  --gold-bright: #FFA940;
+  --green: #4CAF6D;
+  --red: #C6524B;
+  --muted: #8A8A93;
+  --hair: #2A2A2E;
+
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+}
+
+.btc-root {
+  background: var(--ink);
+  border-radius: 14px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 460px;
+  border: 1px solid var(--hair);
+}
+
+/* --- Cypherpunk / Terminal Theme --- */
+body.cypherpunk {
+  --ink: #000000;
+  --ink-2: #0A0F0A;
+  --ink-3: #0E140E;
+  --paper: #33FF66;
+  --gold: #00FF66;
+  --gold-bright: #7CFFA0;
+  --green: #33FF66;
+  --red: #FF3355;
+  --muted: #227733;
+  --hair: #1A3320;
+}
+body.cypherpunk,
+body.cypherpunk input,
+body.cypherpunk textarea,
+body.cypherpunk select,
+body.cypherpunk button {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+body.cypherpunk .btc-root {
+  box-shadow: 0 0 24px rgba(0,255,102,0.15), inset 0 0 60px rgba(0,255,102,0.03);
+}
+body.cypherpunk .btc-eyebrow,
+body.cypherpunk .btc-current-value,
+body.cypherpunk .btc-stat-value,
+body.cypherpunk .btc-pl-amount {
+  text-shadow: 0 0 6px currentColor;
+}
+body.cypherpunk .btc-watermark { color: var(--gold); opacity: 0.06; }
+body.cypherpunk .btc-root::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,255,102,0.035) 0px,
+    rgba(0,255,102,0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+body.cypherpunk .btc-sub,
+body.cypherpunk .btc-history-title,
+body.cypherpunk .btc-result-label,
+body.cypherpunk .btc-stat-label {
+  text-transform: uppercase;
+}
+body.cypherpunk .btc-add-btn,
+body.cypherpunk .btc-modal-actions button.primary {
+  color: #001A0A;
+}
+
+.btc-theme-toggle {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  background: none; border: 1px solid var(--hair); color: var(--muted);
+  padding: 3px 7px; border-radius: 6px; cursor: pointer; letter-spacing: 0.03em;
+  white-space: nowrap; flex-shrink: 0;
+}
+.btc-theme-toggle:hover { color: var(--gold); border-color: var(--gold); }
+.btc-theme-toggle.active-sats { color: var(--gold); border-color: var(--gold); }
+
+
+.btc-header {
+  padding: 26px 26px 20px;
+  border-bottom: 1px solid var(--hair);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.btc-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.btc-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+}
+.btc-add-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btc-add-btn:hover { background: var(--gold-bright); }
+.btc-add-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.btc-body { padding: 24px 26px 28px; }
+
+.btc-ticker-bar {
+  padding: 9px 16px 9px 26px; border-bottom: 1px solid var(--hair);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.btc-ticker-bar span {
+  display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--muted); letter-spacing: 0.02em; opacity: 1;
+  transition: opacity 0.6s ease;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.btc-ticker-bar span.fade { opacity: 0; }
+.btc-ticker-bar span::before { content: '> '; color: var(--gold); }
+.btc-ticker-toggles { display: flex; gap: 5px; flex-shrink: 0; }
+
+.btc-price-label-row {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+}
+.btc-price-label-row label { margin-bottom: 0; }
+.btc-currency-select-inline {
+  background: var(--ink-2); border: 1px solid var(--hair); color: var(--paper);
+  padding: 4px 7px; border-radius: 6px; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; cursor: pointer;
+}
+.btc-currency-select-inline:focus { outline: none; border-color: var(--gold); }
+.btc-rate-info { display: block; font-size: 10px; color: var(--muted); opacity: 0.7; margin-top: 6px; }
+
+.btc-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.btc-stat {
+  background: var(--ink-2);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 13px 15px;
+}
+.btc-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.btc-stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--paper);
+  word-break: break-word;
+}
+.btc-stat.btc-stat-btc .btc-stat-value { color: var(--gold); }
+
+.btc-root { position: relative; }
+.btc-watermark {
+  position: absolute;
+  bottom: -30px;
+  right: -20px;
+  font-size: 160px;
+  font-weight: 700;
+  color: var(--gold);
+  opacity: 0.05;
+  line-height: 1;
+  pointer-events: none;
+  font-family: 'Space Grotesk', sans-serif;
+  user-select: none;
+  z-index: 0;
+  animation: btcHeartbeat 6s ease-in-out infinite;
+  transform-origin: bottom right;
+}
+@keyframes btcHeartbeat {
+  0%   { opacity: 0.05; transform: scale(1); }
+  14%  { opacity: 0.10; transform: scale(1.04); }
+  28%  { opacity: 0.05; transform: scale(1); }
+  42%  { opacity: 0.085; transform: scale(1.03); }
+  56%  { opacity: 0.05; transform: scale(1); }
+  100% { opacity: 0.05; transform: scale(1); }
+}
+
+.btc-field { margin-bottom: 20px; }
+.btc-field label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.btc-price-input-wrap { position: relative; }
+.btc-price-input-wrap input {
+  width: 100%;
+  background: var(--ink-2);
+  border: 1px solid var(--hair);
+  color: var(--paper);
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 600;
+}
+.btc-price-input-wrap input:focus { outline: none; border-color: var(--gold); }
+.btc-currency-suffix {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gold);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  pointer-events: none;
+}
+
+.btc-result {
+  border-top: 1px solid var(--hair);
+  padding-top: 20px;
+}
+.btc-result-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.btc-current-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 14px;
+  word-break: break-word;
+}
+.btc-pl-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: 'JetBrains Mono', monospace; }
+.btc-pl-amount { font-size: 20px; font-weight: 700; }
+.btc-pl-pct { font-size: 14px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+.btc-pl-amount.pos, .btc-pl-pct.pos { color: var(--green); }
+.btc-pl-amount.neg, .btc-pl-pct.neg { color: var(--red); }
+.btc-pl-pct.pos { background: rgba(76,175,109,0.14); }
+.btc-pl-pct.neg { background: rgba(198,82,75,0.14); }
+
+.btc-breakeven { margin-top: 16px; font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.btc-breakeven strong { color: var(--paper); }
+.btc-avgprice-note {
+  font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 20px; padding: 10px 13px; background: var(--ink-2);
+  border: 1px solid var(--hair); border-radius: 8px;
+}
+.btc-avgprice-note strong { color: var(--gold); }
+.btc-placeholder { color: var(--muted); font-size: 14px; padding: 16px 0; }
+
+.btc-goal {
+  margin-top: 22px; padding: 0; background: var(--ink);
+  border: none; border-radius: 10px;
+}
+.btc-goal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.btc-goal-head .btc-history-title { margin-bottom: 0; }
+.btc-goal-head-left { display: flex; align-items: center; gap: 6px; }
+.btc-goal-minimize {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 11px; padding: 2px 4px; line-height: 1; transition: transform 0.2s;
+}
+.btc-goal-minimize:hover { color: var(--gold); }
+.btc-goal.collapsed .btc-goal-minimize { transform: rotate(-90deg); }
+.btc-goal.collapsed #btcGoalContent,
+.btc-goal.collapsed .btc-goal-edit { display: none; }
+.btc-goal-edit {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 13px; padding: 2px 6px; border-radius: 4px;
+}
+.btc-goal-edit:hover { color: var(--gold); }
+.btc-goal-empty { font-size: 12px; color: var(--muted); }
+.btc-goal-level {
+  font-size: 13px; font-weight: 600; margin-bottom: 10px;
+  color: var(--paper);
+}
+.btc-goal-level-name { color: var(--gold); }
+.btc-goal-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--paper);
+  margin-bottom: 8px; flex-wrap: wrap; gap: 6px;
+}
+.btc-goal-row .btc-goal-remaining { color: var(--gold); font-weight: 600; }
+.btc-goal-row .btc-goal-remaining.done { color: var(--green); }
+.btc-goal-bar-track {
+  width: 100%; height: 8px; border-radius: 6px; background: var(--ink-3); overflow: hidden;
+}
+.btc-goal-bar-fill {
+  height: 100%; background: var(--gold); border-radius: 6px; transition: width 0.3s;
+}
+.btc-goal-bar-fill.done { background: var(--green); }
+.btc-goal-pct { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: right; }
+
+/* Purchases list */
+.btc-history { margin-top: 22px; }
+.btc-history-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin-bottom: 10px;
+}
+.btc-history-item {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--hair);
+  color: var(--paper);
+}
+.btc-history-item .meta { color: var(--muted); }
+.btc-history-main { display: flex; align-items: center; gap: 6px; }
+.btc-history-actions { display: flex; gap: 2px; }
+.btc-info-btn {
+  background: none; border: none; color: var(--gold); cursor: pointer;
+  font-size: 13px; padding: 0; line-height: 1; opacity: 0.85;
+}
+.btc-info-btn:hover { opacity: 1; }
+.btc-history-details {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);
+  padding: 6px 0 8px 20px; border-bottom: 1px solid var(--hair);
+}
+.btc-history-details strong { color: var(--paper); }
+.btc-history-note { flex-basis: 100%; }
+.btc-history-del {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 13px; padding: 2px 6px; border-radius: 4px;
+}
+.btc-history-del:hover { color: var(--red); background: var(--ink-2); }
+.btc-empty-history { font-size: 12px; color: var(--muted); padding: 8px 0; }
+
+/* Chart */
+.btc-chart-section { margin-top: 22px; }
+.btc-chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.btc-chart-head .btc-history-title { margin-bottom: 0; }
+.btc-chart-head-left { display: flex; align-items: center; gap: 6px; }
+.btc-chart-minimize {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 11px; padding: 2px 4px; line-height: 1; transition: transform 0.2s;
+}
+.btc-chart-minimize:hover { color: var(--gold); }
+.btc-chart-section.collapsed .btc-chart-minimize { transform: rotate(-90deg); }
+.btc-chart-section.collapsed #btcChartContainer,
+.btc-chart-section.collapsed .btc-chart-toggle { display: none; }
+.btc-chart-toggle { display: flex; gap: 4px; }
+.btc-chart-toggle button {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+  background: var(--ink-2); border: 1px solid var(--hair); color: var(--muted);
+  padding: 4px 10px; border-radius: 6px; cursor: pointer;
+}
+.btc-chart-toggle button.active { background: var(--gold); border-color: var(--gold); color: var(--ink); font-weight: 600; }
+.btc-chart-toggle button:hover:not(.active) { border-color: var(--gold); color: var(--gold); }
+.btc-chart-empty { font-size: 12px; color: var(--muted); padding: 20px 0; text-align: center; }
+.btc-chart-svg { width: 100%; height: auto; display: block; }
+.btc-chart-svg .btc-chart-line { fill: none; stroke: var(--gold); stroke-width: 2; }
+.btc-chart-svg .btc-chart-area { fill: var(--gold); opacity: 0.08; }
+.btc-chart-svg .btc-chart-dot { fill: var(--ink); stroke: var(--gold); stroke-width: 1.5; }
+.btc-chart-svg .btc-chart-dot-last { fill: var(--gold); stroke: none; }
+.btc-chart-svg .btc-chart-grid { stroke: var(--hair); stroke-width: 1; }
+.btc-chart-svg text { font-family: 'JetBrains Mono', monospace; fill: var(--muted); font-size: 9px; }
+.btc-chart-svg .btc-chart-value-label { fill: var(--gold); font-size: 11px; font-weight: 600; }
+
+/* Modal */
+.btc-modal-overlay {
+  position: fixed; inset: 0; background: rgba(6,11,20,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; padding: 20px;
+}
+.btc-modal {
+  background: var(--ink-2); border: 1px solid var(--hair); border-radius: 12px;
+  padding: 26px; width: 100%; max-width: 360px;
+}
+.btc-modal h3 { font-family: 'Space Grotesk', sans-serif; font-size: 17px; margin: 0 0 18px; color: var(--paper); }
+.btc-modal .btc-field input {
+  width: 100%; background: var(--ink); border: 1px solid var(--hair); color: var(--paper);
+  padding: 10px 12px; border-radius: 7px; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+}
+.btc-modal .btc-field textarea {
+  width: 100%; background: var(--ink); border: 1px solid var(--hair); color: var(--paper);
+  padding: 10px 12px; border-radius: 7px; font-family: 'Inter', sans-serif; font-size: 13px;
+  resize: vertical; line-height: 1.4;
+}
+.btc-modal .btc-field textarea:focus { outline: none; border-color: var(--gold); }
+.btc-modal .btc-field input:focus { outline: none; border-color: var(--gold); }
+.btc-modal .btc-field label { font-size: 12px; margin-bottom: 6px; }
+.btc-error { color: var(--red); font-size: 12px; margin-top: 4px; display: none; }
+.btc-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btc-modal-actions button {
+  flex: 1; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+  padding: 10px 14px; border-radius: 8px; cursor: pointer; text-align: center;
+  border: 1px solid var(--hair); background: var(--ink-3); color: var(--paper);
+}
+.btc-modal-actions button.primary { background: var(--gold); border-color: var(--gold); color: var(--ink); font-weight: 600; }
+.btc-modal-actions button.primary:hover { background: var(--gold-bright); }
+.btc-modal-actions button:hover:not(.primary) { border-color: var(--gold); }
+
+.btc-storage-note {
+  font-size: 11px; color: var(--muted); margin-top: 18px; text-align: center;
+}
+.btc-onboard-hint {
+  font-size: 10px; color: var(--muted); opacity: 0.7; margin-top: 10px;
+  text-align: center; line-height: 1.4; padding: 0 8px;
+}
+.btc-credit {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted);
+  text-align: center; margin-top: 12px; opacity: 0.6; letter-spacing: 0.02em;
+}
+.btc-credit-name {
+  color: var(--gold); font-weight: 600; transition: text-shadow 0.2s;
+}
+.btc-credit:hover .btc-credit-name { text-shadow: 0 0 8px var(--gold); }
+
+/* --- Mobile-Optimierung --- */
+@media (max-width: 480px) {
+  body { padding: 10px; }
+  .btc-header { padding: 20px 18px 16px; }
+  .btc-body { padding: 18px 18px 24px; }
+
+  .btc-eyebrow { font-size: 10px; }
+  .btc-sub { font-size: 12px; }
+  .btc-add-btn { padding: 9px 13px; font-size: 12px; }
+
+  .btc-ticker-bar { padding: 8px 12px; flex-wrap: wrap; row-gap: 8px; }
+  .btc-ticker-bar span { flex: 1 1 100%; order: 2; font-size: 10px; }
+  .btc-ticker-toggles { order: 1; margin-left: auto; }
+  .btc-theme-toggle { font-size: 9px; padding: 3px 6px; }
+
+  .btc-stats { gap: 8px; }
+  .btc-stat { padding: 11px 12px; }
+  .btc-stat-value { font-size: 13px; }
+
+  .btc-price-label-row { flex-wrap: wrap; row-gap: 6px; }
+  .btc-current-value { font-size: 28px; }
+
+  .btc-watermark { font-size: 110px; }
+
+  /* Größere Tap-Flächen für kleine Icon-Buttons */
+  .btc-history-del { padding: 8px 10px; font-size: 15px; }
+  .btc-info-btn { padding: 6px 8px; font-size: 15px; }
+  .btc-goal-edit { padding: 8px 10px; font-size: 15px; }
+  .btc-chart-minimize, .btc-goal-minimize { padding: 8px 10px; font-size: 14px; }
+
+  .btc-history-item { flex-wrap: wrap; row-gap: 4px; }
+  .btc-history-item .meta { flex-basis: 100%; }
+
+  .btc-chart-toggle button { padding: 5px 9px; font-size: 10px; }
+
+  .btc-modal { padding: 20px; max-width: calc(100vw - 32px); }
+  .btc-modal-actions { flex-direction: column-reverse; gap: 8px; }
+  .btc-modal-actions button { padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="btc-root">
+  <div class="btc-watermark">₿</div>
+  <div class="btc-header">
+    <div>
+      <div class="btc-eyebrow">₿ Bitcoin Position</div>
+      <div class="btc-sub">Aktueller Kurs eintragen für dein Gewinn/Verlust</div>
+    </div>
+    <button class="btc-add-btn" id="btcAddBtn">+ Kauf</button>
+  </div>
+
+  <div class="btc-ticker-bar">
+    <span id="btcTicker"></span>
+    <div class="btc-ticker-toggles">
+      <button class="btc-theme-toggle" id="btcSatsToggle">⚡ sats_mode</button>
+      <button class="btc-theme-toggle" id="btcThemeToggle">&gt; cypherpunk_mode</button>
+    </div>
+  </div>
+
+  <div class="btc-body">
+    <div class="btc-stats">
+      <div class="btc-stat btc-stat-btc">
+        <div class="btc-stat-label">Bestand</div>
+        <div class="btc-stat-value" id="btcAmountDisplay">–</div>
+      </div>
+      <div class="btc-stat">
+        <div class="btc-stat-label">Gesamt investiert</div>
+        <div class="btc-stat-value" id="btcInvestedDisplay">–</div>
+      </div>
+    </div>
+
+    <div class="btc-avgprice-note" id="btcAvgPriceNote"></div>
+
+    <div class="btc-field">
+      <div class="btc-price-label-row">
+        <label for="btcPriceInput">Aktueller BTC-Kurs</label>
+        <select id="btcCurrencySelect" class="btc-currency-select-inline">
+          <option value="EUR">EUR (€)</option>
+          <option value="USD">USD ($)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="CHF">CHF</option>
+        </select>
+      </div>
+      <div class="btc-price-input-wrap">
+        <input type="number" id="btcPriceInput" step="any" min="0" placeholder="z.B. 95000">
+        <span class="btc-currency-suffix" id="btcCurrencySuffix">€</span>
+      </div>
+      <div class="btc-rate-info" id="btcRateInfo"></div>
+    </div>
+
+    <div class="btc-result" id="btcResult">
+      <div class="btc-placeholder">Trag oben den aktuellen Kurs ein, um dein Ergebnis zu sehen.</div>
+    </div>
+
+    <div class="btc-history">
+      <div class="btc-history-title">Käufe</div>
+      <div id="btcHistoryList"></div>
+    </div>
+
+    <div class="btc-goal" id="btcGoalBox">
+      <div class="btc-goal-head">
+        <div class="btc-goal-head-left">
+          <button class="btc-goal-minimize" id="btcGoalMinimizeBtn" title="Sat Stack Goal minimieren" aria-label="Sat Stack Goal minimieren">▾</button>
+          <div class="btc-history-title">Sat Stack Goal</div>
+        </div>
+        <button class="btc-goal-edit" id="btcGoalEditBtn" title="Ziel bearbeiten" aria-label="Ziel bearbeiten">✎</button>
+      </div>
+      <div id="btcGoalContent"></div>
+    </div>
+
+    <div class="btc-chart-section">
+      <div class="btc-chart-head">
+        <div class="btc-chart-head-left">
+          <button class="btc-chart-minimize" id="btcChartMinimizeBtn" title="Verlauf minimieren" aria-label="Verlauf minimieren">▾</button>
+          <div class="btc-history-title">Verlauf</div>
+        </div>
+        <div class="btc-chart-toggle" id="btcChartToggle">
+          <button class="active" id="btcChartAmountBtn" data-metric="amount">Bestand</button>
+          <button id="btcChartInvestedBtn" data-metric="invested">Investiert</button>
+        </div>
+      </div>
+      <div id="btcChartContainer"></div>
+    </div>
+
+    <div class="btc-onboard-hint">Alle Daten (Käufe, Ziel, Notizen) bleiben ausschließlich in deinem Browser gespeichert — nichts wird an einen Server oder Dritte übertragen.</div>
+    <div class="btc-credit">built by <span class="btc-credit-name">luca_trezza</span></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // --- Storage abstraction: works standalone (localStorage) AND inside Claude artifacts (window.storage) ---
+  const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage !== null;
+  // Eindeutiger Namespace, damit diese (leere) Version niemals mit anderen
+  // btc-Rechner-Versionen auf derselben Domain (z.B. lucatrezza.github.io/...) den
+  // Speicher teilt, selbst wenn beide im gleichen Browser geöffnet werden.
+  const STORAGE_NS = 'btcfriend_';
+
+  async function storeGet(key) {
+    const k = STORAGE_NS + key;
+    if (hasClaudeStorage) {
+      try {
+        const res = await window.storage.get(k);
+        return res ? res.value : null;
+      } catch (e) { return null; }
+    }
+    try {
+      const v = localStorage.getItem(k);
+      return v;
+    } catch (e) { return null; }
+  }
+  async function storeSet(key, value) {
+    const k = STORAGE_NS + key;
+    if (hasClaudeStorage) {
+      try { await window.storage.set(k, value); } catch (e) {}
+      return;
+    }
+    try { localStorage.setItem(k, value); } catch (e) {}
+  }
+
+  // --- Seed: initial purchases (from prior history) ---
+  const SEED_PURCHASES = [];
+
+  let purchases = [];
+  let currentPrice = '';
+
+  const CURRENCIES = {
+    EUR: { symbol: '€', locale: 'de-DE' },
+    USD: { symbol: '$', locale: 'en-US' },
+    GBP: { symbol: '£', locale: 'en-GB' },
+    CHF: { symbol: 'CHF', locale: 'de-CH' }
+  };
+  let currentCurrency = 'EUR';
+  let rates = { EUR: 1 };
+  let ratesUpdatedAt = null;
+
+  async function fetchRates() {
+    try {
+      const res = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD,GBP,CHF');
+      const data = await res.json();
+      if (data && data.rates) {
+        rates = { EUR: 1, ...data.rates };
+        ratesUpdatedAt = Date.now();
+        await storeSet('btc_rates', JSON.stringify({ rates, ts: ratesUpdatedAt }));
+      }
+    } catch (e) {
+      const cached = await storeGet('btc_rates');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          rates = parsed.rates || { EUR: 1 };
+          ratesUpdatedAt = parsed.ts || null;
+        } catch (e2) {}
+      }
+    }
+  }
+
+  // Convert an EUR amount into the currently selected display currency
+  function toDisplay(eurAmount) {
+    return eurAmount * (rates[currentCurrency] || 1);
+  }
+  // Convert an amount given in the currently selected display currency back into EUR (canonical storage)
+  function toEur(displayAmount) {
+    return displayAmount / (rates[currentCurrency] || 1);
+  }
+  function round2(n) {
+    return Math.round(n * 100) / 100;
+  }
+  function ratesAgeLabel() {
+    if (!ratesUpdatedAt) return '';
+    const mins = Math.round((Date.now() - ratesUpdatedAt) / 60000);
+    if (mins < 1) return 'gerade aktualisiert';
+    if (mins < 60) return `vor ${mins} Min. aktualisiert`;
+    const hours = Math.round(mins / 60);
+    return `vor ${hours} Std. aktualisiert`;
+  }
+
+  const priceInput = document.getElementById('btcPriceInput');
+  const amountDisplay = document.getElementById('btcAmountDisplay');
+  const investedDisplay = document.getElementById('btcInvestedDisplay');
+  const resultEl = document.getElementById('btcResult');
+  const historyListEl = document.getElementById('btcHistoryList');
+  const addBtn = document.getElementById('btcAddBtn');
+  const goalContentEl = document.getElementById('btcGoalContent');
+  const goalEditBtn = document.getElementById('btcGoalEditBtn');
+  const goalBoxEl = document.getElementById('btcGoalBox');
+  const goalMinimizeBtn = document.getElementById('btcGoalMinimizeBtn');
+  const currencySelect = document.getElementById('btcCurrencySelect');
+  const currencySuffixEl = document.getElementById('btcCurrencySuffix');
+  const themeToggleBtn = document.getElementById('btcThemeToggle');
+  const satsToggleBtn = document.getElementById('btcSatsToggle');
+  let satsMode = false;
+  const chartContainerEl = document.getElementById('btcChartContainer');
+  const chartAmountBtn = document.getElementById('btcChartAmountBtn');
+  const chartInvestedBtn = document.getElementById('btcChartInvestedBtn');
+  const chartSectionEl = document.querySelector('.btc-chart-section');
+  const chartMinimizeBtn = document.getElementById('btcChartMinimizeBtn');
+  let goalAmount = null;
+  let chartMetric = 'amount';
+
+  function curSymbol() {
+    return CURRENCIES[currentCurrency].symbol;
+  }
+  function fmtFiat(n) {
+    const c = CURRENCIES[currentCurrency];
+    return c.symbol + ' ' + n.toLocaleString(c.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtBtc(n) {
+    if (satsMode) {
+      const sats = Math.round(n * 1e8);
+      return '⚡ ' + sats.toLocaleString('de-DE') + ' sats';
+    }
+    return '₿ ' + n.toLocaleString('de-DE', { minimumFractionDigits: 8, maximumFractionDigits: 8 });
+  }
+  function totals() {
+    const amount = purchases.reduce((s, p) => s + p.amount, 0);
+    const invested = purchases.reduce((s, p) => s + p.invested, 0);
+    return { amount, invested };
+  }
+
+  function renderStats() {
+    const { amount, invested } = totals();
+    const investedDisp = toDisplay(invested);
+    amountDisplay.textContent = amount > 0 ? fmtBtc(amount) : '–';
+    investedDisplay.textContent = invested > 0 ? fmtFiat(investedDisp) : '–';
+
+    const avgPriceEl = document.getElementById('btcAvgPriceNote');
+    if (amount > 0 && invested > 0) {
+      const avgPrice = investedDisp / amount;
+      avgPriceEl.innerHTML = `Ø-Kaufpreis: <strong>${fmtFiat(avgPrice)}</strong> pro BTC — ab diesem Kurs bist du im Plus.`;
+    } else {
+      avgPriceEl.innerHTML = '';
+    }
+  }
+
+  function renderResult() {
+    const { amount, invested } = totals();
+    const raw = priceInput.value;
+    if (!raw || isNaN(parseFloat(raw)) || amount <= 0) {
+      resultEl.innerHTML = '<div class="btc-placeholder">Trag oben den aktuellen Kurs ein, um dein Ergebnis zu sehen.</div>';
+      return;
+    }
+    const price = parseFloat(raw);
+    const investedDisp = toDisplay(invested);
+    const currentValue = price * amount;
+    const pl = currentValue - investedDisp;
+    const plPct = investedDisp > 0 ? (pl / investedDisp) * 100 : 0;
+    const cls = pl >= 0 ? 'pos' : 'neg';
+    const sign = pl >= 0 ? '+' : '';
+
+    resultEl.innerHTML = `
+      <div class="btc-result-label">Aktueller Wert deiner Position</div>
+      <div class="btc-current-value">${fmtFiat(currentValue)}</div>
+      <div class="btc-pl-row">
+        <span class="btc-pl-amount ${cls}">${sign}${fmtFiat(pl)}</span>
+        <span class="btc-pl-pct ${cls}">${sign}${plPct.toFixed(2)}%</span>
+      </div>
+    `;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function sortedPurchases() {
+    return purchases.slice().sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return b.date.localeCompare(a.date);
+    });
+  }
+
+  function hasDetails(p) {
+    return !!(p.exchange || p.fee || p.note);
+  }
+
+  function renderHistory() {
+    if (purchases.length === 0) {
+      historyListEl.innerHTML = '<div class="btc-empty-history">Noch keine Käufe erfasst.</div>';
+      return;
+    }
+    historyListEl.innerHTML = sortedPurchases().map(p => `
+      <div class="btc-history-item">
+        <span class="btc-history-main">
+          ${hasDetails(p) ? `<button class="btc-info-btn" data-info="${p.id}" title="Details anzeigen" aria-label="Details anzeigen">ⓘ</button>` : ''}
+          <span>${p.label ? p.label : (fmtDate(p.date) || '–')}</span>
+        </span>
+        <span class="meta">${fmtBtc(p.amount)} · ${fmtFiat(toDisplay(p.invested))}</span>
+        <span class="btc-history-actions">
+          <button class="btc-history-del" data-edit="${p.id}" title="Bearbeiten" aria-label="Bearbeiten">✎</button>
+          <button class="btc-history-del" data-id="${p.id}" title="Löschen" aria-label="Löschen">✕</button>
+        </span>
+      </div>
+      <div class="btc-history-details" id="btc-details-${p.id}" style="display:none;">
+        ${p.exchange ? `<span><strong>Broker:</strong> ${p.exchange}</span>` : ''}
+        ${p.fee ? `<span><strong>Fee:</strong> ${fmtFiat(toDisplay(parseFloat(p.fee)))}</span>` : ''}
+        ${p.note ? `<span class="btc-history-note"><strong>Notiz:</strong> ${p.note}</span>` : ''}
+      </div>
+    `).join('');
+    historyListEl.querySelectorAll('[data-id]').forEach(btn => {
+      btn.addEventListener('click', () => deletePurchase(btn.getAttribute('data-id')));
+    });
+    historyListEl.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.addEventListener('click', () => openAddModal(btn.getAttribute('data-edit')));
+    });
+    historyListEl.querySelectorAll('[data-info]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-info');
+        const el = document.getElementById('btc-details-' + id);
+        if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+      });
+    });
+  }
+
+  const ORANGE_PILL_LEVELS = [
+    { min: 0, label: 'Sat Rat', emoji: '🐀' },
+    { min: 10, label: 'Stacker', emoji: '🧡' },
+    { min: 25, label: 'Serious Stacker', emoji: '💪' },
+    { min: 50, label: 'Bitcoin Believer', emoji: '🔥' },
+    { min: 75, label: 'Almost Orange-Pilled', emoji: '⚡' },
+    { min: 100, label: 'Orange-Pilled Legend', emoji: '🟠' }
+  ];
+  function orangePillLevel(pct) {
+    let current = ORANGE_PILL_LEVELS[0];
+    for (const lvl of ORANGE_PILL_LEVELS) {
+      if (pct >= lvl.min) current = lvl;
+    }
+    return current;
+  }
+
+  function renderGoal() {
+    const { amount } = totals();
+    if (!goalAmount || goalAmount <= 0) {
+      goalContentEl.innerHTML = '<div class="btc-goal-empty">Noch kein Sat Stack Goal gesetzt. Klick auf ✎, um eins festzulegen.</div>';
+      return;
+    }
+    const remaining = goalAmount - amount;
+    const pct = Math.min(100, Math.max(0, (amount / goalAmount) * 100));
+    const isDone = remaining <= 0;
+    const level = orangePillLevel(pct);
+    goalContentEl.innerHTML = `
+      <div class="btc-goal-level">${level.emoji} <span class="btc-goal-level-name">${level.label}</span></div>
+      <div class="btc-goal-row">
+        <span>${fmtBtc(amount)} von ${fmtBtc(goalAmount)}</span>
+        <span class="btc-goal-remaining ${isDone ? 'done' : ''}">${isDone ? 'Ziel erreicht 🎉' : `noch ${fmtBtc(remaining)}`}</span>
+      </div>
+      <div class="btc-goal-bar-track">
+        <div class="btc-goal-bar-fill ${isDone ? 'done' : ''}" style="width:${pct}%;"></div>
+      </div>
+      <div class="btc-goal-pct">${pct.toFixed(1)}%</div>
+    `;
+  }
+
+  function renderRateInfo() {
+    const rateInfoEl = document.getElementById('btcRateInfo');
+    if (!rateInfoEl) return;
+    if (currentCurrency === 'EUR') {
+      rateInfoEl.textContent = '';
+      return;
+    }
+    const rate = rates[currentCurrency];
+    if (!rate) {
+      rateInfoEl.textContent = 'Kurs nicht verfügbar';
+      return;
+    }
+    rateInfoEl.textContent = `1 € = ${rate.toFixed(4)} ${currentCurrency} · ${ratesAgeLabel()}`;
+  }
+
+  function renderChart() {
+    if (!chartContainerEl) return;
+    if (purchases.length < 2) {
+      chartContainerEl.innerHTML = '<div class="btc-chart-empty">Sobald du mindestens 2 Käufe erfasst hast, siehst du hier deinen Verlauf.</div>';
+      return;
+    }
+
+    // Undatierte Käufe zählen chronologisch als "am Anfang" (z.B. der Altbestand)
+    const sorted = purchases.slice().sort((a, b) => {
+      const da = a.date || '';
+      const db = b.date || '';
+      if (da === db) return 0;
+      if (!da) return -1;
+      if (!db) return 1;
+      return da.localeCompare(db);
+    });
+
+    let cumAmount = 0;
+    let cumInvested = 0;
+    const points = sorted.map(p => {
+      cumAmount += p.amount;
+      cumInvested += p.invested;
+      return { date: p.date, cumAmount, cumInvestedDisp: toDisplay(cumInvested) };
+    });
+
+    const isAmount = chartMetric === 'amount';
+    const values = points.map(pt => isAmount ? pt.cumAmount : pt.cumInvestedDisp);
+    const maxVal = Math.max(...values) * 1.15 || 1;
+
+    const W = 400, H = 150, padL = 8, padR = 8, padT = 16, padB = 20;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const n = points.length;
+
+    const xAt = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+    const yAt = (v) => padT + plotH - (v / maxVal) * plotH;
+
+    const coords = values.map((v, i) => [xAt(i), yAt(v)]);
+    const linePath = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
+    const areaPath = linePath + ` L${coords[coords.length - 1][0].toFixed(1)},${(padT + plotH).toFixed(1)} L${coords[0][0].toFixed(1)},${(padT + plotH).toFixed(1)} Z`;
+
+    const dots = coords.map((c, i) => {
+      const isLast = i === coords.length - 1;
+      return `<circle class="${isLast ? 'btc-chart-dot-last' : 'btc-chart-dot'}" cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${isLast ? 4 : 3}"></circle>`;
+    }).join('');
+
+    const firstLabel = points[0].date ? fmtDate(points[0].date) : 'Start';
+    const lastLabel = points[n - 1].date ? fmtDate(points[n - 1].date) : 'heute';
+    const lastValue = isAmount ? fmtBtc(points[n - 1].cumAmount) : fmtFiat(points[n - 1].cumInvestedDisp);
+    const lastCoord = coords[coords.length - 1];
+
+    chartContainerEl.innerHTML = `
+      <svg class="btc-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        <line class="btc-chart-grid" x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}"></line>
+        <line class="btc-chart-grid" x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}"></line>
+        <path class="btc-chart-area" d="${areaPath}"></path>
+        <path class="btc-chart-line" d="${linePath}"></path>
+        ${dots}
+        <text class="btc-chart-value-label" x="${Math.min(lastCoord[0], W - 60)}" y="${Math.max(lastCoord[1] - 10, 12)}">${lastValue}</text>
+        <text x="${padL}" y="${H - 4}">${firstLabel}</text>
+        <text x="${W - padR}" y="${H - 4}" text-anchor="end">${lastLabel}</text>
+      </svg>
+    `;
+  }
+
+  function renderAll() {
+    renderStats();
+    renderResult();
+    renderHistory();
+    renderGoal();
+    renderRateInfo();
+    renderChart();
+  }
+
+  async function savePurchases() {
+    await storeSet('btc_purchases', JSON.stringify(purchases));
+  }
+
+  async function deletePurchase(id) {
+    purchases = purchases.filter(p => p.id !== id);
+    await savePurchases();
+    renderAll();
+  }
+
+  function uid() { return 'p' + Date.now() + Math.random().toString(36).slice(2, 7); }
+
+  function openAddModal(editId) {
+    const existing = editId ? purchases.find(p => p.id === editId) : null;
+    const overlay = document.createElement('div');
+    overlay.className = 'btc-modal-overlay';
+    overlay.innerHTML = `
+      <div class="btc-modal">
+        <h3>${existing ? 'Kauf bearbeiten' : 'Neuer Kauf'}</h3>
+        <div class="btc-field">
+          <label for="btcNewAmount">Menge BTC</label>
+          <input type="number" id="btcNewAmount" step="any" min="0" placeholder="z.B. 0.005" value="${existing ? existing.amount : ''}">
+        </div>
+        <div class="btc-field">
+          <label for="btcNewInvested">Bezahlt in ${curSymbol()} (inkl. Fees)</label>
+          <input type="number" id="btcNewInvested" step="any" min="0" placeholder="z.B. 300" value="${existing ? round2(toDisplay(existing.invested)) : ''}">
+        </div>
+        <div class="btc-field">
+          <label for="btcNewDate">Datum (optional)</label>
+          <input type="date" id="btcNewDate" value="${existing && existing.date ? existing.date : ''}">
+        </div>
+        <div class="btc-field">
+          <label for="btcNewExchange">Broker (optional)</label>
+          <input type="text" id="btcNewExchange" placeholder="z.B. Binance" value="${existing && existing.exchange ? existing.exchange : ''}">
+        </div>
+        <div class="btc-field">
+          <label for="btcNewFee">Fee in ${curSymbol()} (optional)</label>
+          <input type="number" id="btcNewFee" step="any" min="0" placeholder="z.B. 2.50" value="${existing && existing.fee ? round2(toDisplay(parseFloat(existing.fee))) : ''}">
+        </div>
+        <div class="btc-field">
+          <label for="btcNewNote">Notiz (optional)</label>
+          <textarea id="btcNewNote" rows="2" placeholder="z.B. Kauf via Sparplan, Grund für den Kauf ...">${existing && existing.note ? existing.note : ''}</textarea>
+        </div>
+        <div class="btc-error" id="btcModalError"></div>
+        <div class="btc-modal-actions">
+          <button id="btcCancelBtn">Abbrechen</button>
+          <button class="primary" id="btcSaveBtn">Speichern</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('#btcCancelBtn').addEventListener('click', close);
+    overlay.querySelector('#btcSaveBtn').addEventListener('click', async () => {
+      const amount = parseFloat(overlay.querySelector('#btcNewAmount').value);
+      const investedInput = parseFloat(overlay.querySelector('#btcNewInvested').value);
+      const date = overlay.querySelector('#btcNewDate').value || '';
+      const exchange = overlay.querySelector('#btcNewExchange').value.trim();
+      const feeInputRaw = overlay.querySelector('#btcNewFee').value;
+      const note = overlay.querySelector('#btcNewNote').value.trim();
+      const errEl = overlay.querySelector('#btcModalError');
+      if (!amount || amount <= 0) {
+        errEl.textContent = 'Bitte eine gültige BTC-Menge größer 0 eingeben.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!investedInput || investedInput <= 0) {
+        errEl.textContent = `Bitte einen gültigen Betrag in ${curSymbol()} eingeben.`;
+        errEl.style.display = 'block';
+        return;
+      }
+      // Store canonically in EUR regardless of the currently displayed currency
+      const invested = toEur(investedInput);
+      const fee = feeInputRaw ? String(toEur(parseFloat(feeInputRaw))) : '';
+      if (existing) {
+        existing.amount = amount;
+        existing.invested = invested;
+        existing.date = date;
+        existing.exchange = exchange;
+        existing.fee = fee;
+        existing.note = note;
+        delete existing.label; // once edited, drop the "Bisheriger Bestand" label
+      } else {
+        purchases.push({ id: uid(), amount, invested, date, exchange, fee, note });
+      }
+      await savePurchases();
+      close();
+      renderAll();
+    });
+    setTimeout(() => overlay.querySelector('#btcNewAmount').focus(), 0);
+  }
+
+  function openGoalModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'btc-modal-overlay';
+    overlay.innerHTML = `
+      <div class="btc-modal">
+        <h3>Sat Stack Goal festlegen</h3>
+        <div class="btc-field">
+          <label for="btcGoalInput">Ziel gesamt in BTC</label>
+          <input type="number" id="btcGoalInput" step="any" min="0" placeholder="z.B. 1" value="${goalAmount ? goalAmount : ''}">
+        </div>
+        <div class="btc-error" id="btcGoalError"></div>
+        <div class="btc-modal-actions">
+          <button id="btcGoalCancelBtn">Abbrechen</button>
+          <button class="primary" id="btcGoalSaveBtn">Speichern</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('#btcGoalCancelBtn').addEventListener('click', close);
+    overlay.querySelector('#btcGoalSaveBtn').addEventListener('click', async () => {
+      const val = parseFloat(overlay.querySelector('#btcGoalInput').value);
+      const errEl = overlay.querySelector('#btcGoalError');
+      if (!val || val <= 0) {
+        errEl.textContent = 'Bitte eine gültige BTC-Menge größer 0 eingeben.';
+        errEl.style.display = 'block';
+        return;
+      }
+      goalAmount = val;
+      await storeSet('btc_goal', String(goalAmount));
+      close();
+      renderGoal();
+    });
+    setTimeout(() => overlay.querySelector('#btcGoalInput').focus(), 0);
+  }
+
+  goalEditBtn.addEventListener('click', openGoalModal);
+
+  currencySelect.addEventListener('change', async () => {
+    currentCurrency = currencySelect.value;
+    currencySuffixEl.textContent = curSymbol();
+    await storeSet('btc_currency', currentCurrency);
+    renderAll();
+  });
+
+  function applyTheme(isCypherpunk) {
+    document.body.classList.toggle('cypherpunk', isCypherpunk);
+    themeToggleBtn.textContent = isCypherpunk ? '> normal_mode' : '> cypherpunk_mode';
+  }
+
+  themeToggleBtn.addEventListener('click', async () => {
+    const isNowCypherpunk = !document.body.classList.contains('cypherpunk');
+    applyTheme(isNowCypherpunk);
+    await storeSet('btc_theme', isNowCypherpunk ? 'cypherpunk' : 'normal');
+  });
+
+  function applySatsMode(isSats) {
+    satsMode = isSats;
+    satsToggleBtn.textContent = isSats ? '⚡ btc_mode' : '⚡ sats_mode';
+    satsToggleBtn.classList.toggle('active-sats', isSats);
+  }
+
+  satsToggleBtn.addEventListener('click', async () => {
+    applySatsMode(!satsMode);
+    await storeSet('btc_sats_mode', satsMode ? '1' : '0');
+    renderAll();
+  });
+
+  function setChartMetric(metric) {
+    chartMetric = metric;
+    chartAmountBtn.classList.toggle('active', metric === 'amount');
+    chartInvestedBtn.classList.toggle('active', metric === 'invested');
+    renderChart();
+  }
+  chartAmountBtn.addEventListener('click', () => setChartMetric('amount'));
+  chartInvestedBtn.addEventListener('click', () => setChartMetric('invested'));
+
+  chartMinimizeBtn.addEventListener('click', async () => {
+    const isCollapsed = chartSectionEl.classList.toggle('collapsed');
+    chartMinimizeBtn.title = isCollapsed ? 'Verlauf einblenden' : 'Verlauf minimieren';
+    await storeSet('btc_chart_collapsed', isCollapsed ? '1' : '0');
+  });
+
+  goalMinimizeBtn.addEventListener('click', async () => {
+    const isCollapsed = goalBoxEl.classList.toggle('collapsed');
+    goalMinimizeBtn.title = isCollapsed ? 'Sat Stack Goal einblenden' : 'Sat Stack Goal minimieren';
+    await storeSet('btc_goal_collapsed', isCollapsed ? '1' : '0');
+  });
+
+  addBtn.addEventListener('click', () => openAddModal(null));
+  priceInput.addEventListener('input', () => { renderResult(); });
+  priceInput.addEventListener('change', async () => { await storeSet('last_btc_price', priceInput.value); });
+
+  const TICKER_PHRASES = [
+    'Stay humble, stack sats',
+    '21 million, no more no less',
+    'Not your keys, not your coins',
+    'Number go up technology',
+    'Vires in numeris',
+    'Have fun staying poor',
+    'This is the way',
+    'In math we trust'
+  ];
+  const tickerEl = document.getElementById('btcTicker');
+  let tickerIndex = 0;
+  function startTicker() {
+    if (!tickerEl) return;
+    tickerEl.textContent = TICKER_PHRASES[0];
+    setInterval(() => {
+      tickerEl.classList.add('fade');
+      setTimeout(() => {
+        tickerIndex = (tickerIndex + 1) % TICKER_PHRASES.length;
+        tickerEl.textContent = TICKER_PHRASES[tickerIndex];
+        tickerEl.classList.remove('fade');
+      }, 600);
+    }, 4500);
+  }
+  startTicker();
+
+  (async function init() {
+    const stored = await storeGet('btc_purchases');
+    if (stored) {
+      try { purchases = JSON.parse(stored); } catch (e) { purchases = []; }
+    } else {
+      purchases = SEED_PURCHASES.slice();
+      await savePurchases();
+    }
+    const lastPrice = await storeGet('last_btc_price');
+    if (lastPrice) priceInput.value = lastPrice;
+    const savedGoal = await storeGet('btc_goal');
+    if (savedGoal) goalAmount = parseFloat(savedGoal);
+    const savedCurrency = await storeGet('btc_currency');
+    if (savedCurrency && CURRENCIES[savedCurrency]) {
+      currentCurrency = savedCurrency;
+      currencySelect.value = currentCurrency;
+      currencySuffixEl.textContent = curSymbol();
+    }
+    // Load cached rates first so we have something instantly, then refresh from the API
+    const cachedRates = await storeGet('btc_rates');
+    if (cachedRates) {
+      try {
+        const parsed = JSON.parse(cachedRates);
+        rates = parsed.rates || { EUR: 1 };
+        ratesUpdatedAt = parsed.ts || null;
+      } catch (e) {}
+    }
+    const savedTheme = await storeGet('btc_theme');
+    applyTheme(savedTheme === 'cypherpunk');
+    const savedSatsMode = await storeGet('btc_sats_mode');
+    applySatsMode(savedSatsMode === '1');
+    const savedChartCollapsed = await storeGet('btc_chart_collapsed');
+    if (savedChartCollapsed !== '0') {
+      chartSectionEl.classList.add('collapsed');
+      chartMinimizeBtn.title = 'Verlauf einblenden';
+    }
+    const savedGoalCollapsed = await storeGet('btc_goal_collapsed');
+    if (savedGoalCollapsed !== '0') {
+      goalBoxEl.classList.add('collapsed');
+      goalMinimizeBtn.title = 'Sat Stack Goal einblenden';
+    }
+    renderAll();
+    await fetchRates();
+    renderAll();
+  })();
+})();
+</script>
+</body>
+</html>
